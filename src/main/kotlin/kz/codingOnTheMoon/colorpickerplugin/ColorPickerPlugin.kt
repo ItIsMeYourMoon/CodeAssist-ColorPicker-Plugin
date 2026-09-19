@@ -19,6 +19,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kz.codingOnTheMoon.colorpickerplugin.actions.ColorPickerAction
 import kz.codingOnTheMoon.colorpickerplugin.providers.ColorSwatches
 import kz.codingOnTheMoon.colorpickerplugin.ui.ColorPickerDialog
+import kz.codingOnTheMoon.colorpickerplugin.util.ColorUtils
+import kz.codingOnTheMoon.colorpickerplugin.util.ColorUtils.ColorLiteral
 import kz.codingOnTheMoon.colorpickerplugin.util.Colors
 
 class ColorPickerPlugin : Plugin, UiPlugin {
@@ -26,7 +28,7 @@ class ColorPickerPlugin : Plugin, UiPlugin {
     override val id: String = "kz.codingOnTheMoon.colorpickerplugin"
 
     override fun register(reg: PluginRegistration) {
-        val logger = reg.logger("ColorPickerPluginPlugin")
+        val logger = reg.logger("ColorPickerPlugin")
         logger.info("loaded")
         reg.register(
             ep = EDITOR_DECORATION_EP,
@@ -45,7 +47,7 @@ class ColorPickerPlugin : Plugin, UiPlugin {
                 layer = EditorPaintLayer.AboveText,
                 paint = { editorPaintContext: EditorPaintContext ->
                     val colors = getDetectedColors(editorPaintContext.path)
-                    for((offset, color) in colors) {
+                    for ((offset, color) in colors) {
                         val line = editorPaintContext.lineOf(offset)
 
                         if (line !in editorPaintContext.visibleLines || editorPaintContext.isHidden(line)) {
@@ -78,12 +80,12 @@ class ColorPickerPlugin : Plugin, UiPlugin {
                 id = "kz.codingOnTheMoon.colorpickerplugin.ColorPickerPlugin-color-picker-dialog",
                 content = {
                     val isOpen by isPickerOpen.collectAsState()
-                    
+
                     Log.d("ColorPickerOverlay", "Overlay state: isOpen=$isOpen, currentColor=${ColorPickerPlugin._currentColor.value}")
                     if (isOpen) {
                         Log.d("ColorPickerOverlay", "Rendering ColorPickerDialog")
                         ColorPickerDialog(currentColor.value)
-                    }else{
+                    }else {
                         Log.d("ColorPickerOverlay", "Dialog not rendering (isOpen=false)")
                     }
                 }
@@ -96,20 +98,36 @@ class ColorPickerPlugin : Plugin, UiPlugin {
         private val _swatches = MutableStateFlow<Map<String, List<Pair<Int, Colors>>>>(emptyMap())
         val swatches: StateFlow<Map<String, List<Pair<Int, Colors>>>> = _swatches.asStateFlow()
 
+        private val _colorLiterals = MutableStateFlow<Map<String, List<ColorLiteral>>>(emptyMap())
+
         private val _currentColor = MutableStateFlow<String>("")
         val currentColor: StateFlow<String> = _currentColor.asStateFlow()
 
         private val _isPickerOpen = MutableStateFlow(false)
         val isPickerOpen: StateFlow<Boolean> = _isPickerOpen.asStateFlow()
 
-        fun putDetectedColors(filePath: String, colors: List<Pair<Int, Colors>>) {
-            val current = _swatches.value.toMutableMap()
-            current[filePath] = colors
-            _swatches.value = current
+        fun putDetectedColors(filePath: String, literals: List<ColorLiteral>) {
+            
+            val swatchPairs = literals.mapNotNull { literal ->
+                ColorUtils.parseColor(literal.color)?.let {
+                    literal.start to it
+                }
+            }
+
+            val swatchesCurrent = _swatches.value.toMutableMap()
+            swatchesCurrent[filePath] = swatchPairs
+            _swatches.value = swatchesCurrent
+
+            val literalsCurrent = _colorLiterals.value.toMutableMap()
+            literalsCurrent[filePath] = literals
+            _colorLiterals.value = literalsCurrent
         }
 
-        fun getDetectedColors(filePath: String):
-        List<Pair<Int, Colors>> = _swatches.value[filePath] ?: emptyList()
+        fun getDetectedColors(filePath: String): List<Pair<Int, Colors>> =
+        _swatches.value[filePath] ?: emptyList()
+
+        fun getColorLiterals(filePath: String): List<ColorLiteral> =
+        _colorLiterals.value[filePath] ?: emptyList()
 
         private val _colorPickerChannel = Channel<Pair<Colors?, Boolean>>(capacity = 1)
 
@@ -122,9 +140,9 @@ class ColorPickerPlugin : Plugin, UiPlugin {
             currentFilePath = filePath
             _isPickerOpen.value = true
         }
-        
-        var shouldPreserveOGFormat = true 
-        
+
+        var shouldPreserveOGFormat = true
+
         fun sendPickerResult(color: Colors?, shouldPreserve: Boolean = shouldPreserveOGFormat) {
             Log.d("ColorPickerPlugin", "sendPickerResult() called with: $color")
             shouldPreserveOGFormat = shouldPreserve
@@ -141,7 +159,7 @@ class ColorPickerPlugin : Plugin, UiPlugin {
             }
         }
 
-        suspend fun awaitPickerResult(): Pair<Colors?, Boolean>?{
+        suspend fun awaitPickerResult(): Pair<Colors?, Boolean>? {
             return try {
                 _colorPickerChannel.receive()
             } catch (e: Exception) {

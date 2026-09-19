@@ -1,5 +1,7 @@
 package kz.codingOnTheMoon.colorpickerplugin.util
 
+import android.util.Log
+
 data class Colors(val alpha: Int, val red: Int, val green: Int, val blue: Int) {
     fun toHex(): String =
     "%02X%02X%02X%02X".format(alpha, red, green, blue)
@@ -32,7 +34,13 @@ data class Colors(val alpha: Int, val red: Int, val green: Int, val blue: Int) {
                         blue = clean.substring(6, 8).toInt(16)
                     )
                 }
-                else -> throw IllegalArgumentException("Expected 6 or 8 digit hex color, got: $value")
+                else -> {
+                   Log.e(
+                        "Colors.kt",
+                        "Expected 6 or 8 digit hex color, got: $value"
+                    )
+                    throw IllegalArgumentException("Invalid color: $value") 
+                }
             }
         }
     }

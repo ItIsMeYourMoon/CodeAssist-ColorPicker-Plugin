@@ -23,16 +23,8 @@ import kz.codingOnTheMoon.colorpickerplugin.util.Colors
 @Composable
 fun ColorPickerDialog(currentColor: String) {
 
-    val normalizedColorHex = when {
-        currentColor.startsWith("#") -> currentColor
-        currentColor.startsWith("0x", ignoreCase = true) -> currentColor
-        else -> "#$currentColor"
-    }
-    val initialColor = try {
-        Colors.fromArgb(normalizedColorHex)
-    }catch(e: Exception) {
-        Colors(alpha = 255, red = 255, green = 0, blue = 0)
-    }
+    val initialColor = ColorUtils.parseColor(currentColor)
+        ?: Colors(alpha = 255, red = 255, green = 0, blue = 0)
 
     var hexInput by rememberSaveable {
         mutableStateOf(initialColor.toHex())
