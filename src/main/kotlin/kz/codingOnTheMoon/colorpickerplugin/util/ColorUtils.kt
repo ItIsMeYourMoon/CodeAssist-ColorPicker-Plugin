@@ -4,8 +4,9 @@ import kotlin.math.roundToInt
 
 object ColorUtils {
 
+    // Regex patterns
     private val hexPattern = Regex(
-        """(?:#|0x)[0-9A-Fa-f]{3,8}(?![0-9A-Fa-f])""",
+        """(?:#|0x)[0-9A-Fa-f]{1,8}(?![0-9A-Fa-f])""",
         RegexOption.IGNORE_CASE
     )
 
@@ -40,14 +41,14 @@ object ColorUtils {
 
     fun findColorLiterals(text: String): List<ColorLiteral> {
         val matches = mutableListOf<ColorLiteral>()
-
+        
         hexPattern.findAll(text).forEach { match ->
             if (match.range.first > 0 && text[match.range.first - 1].isLetterOrDigit()) return@forEach
             val clean = match.value.removePrefix("#").removePrefix("0x").removePrefix("0X")
             if (clean.length !in setOf(3, 4, 6, 8)) return@forEach
             matches += ColorLiteral(match.range.first, match.range.last + 1, match.value)
         }
-
+        
         listOf(
             rgbPattern to 3,
             argbPattern to 4,
@@ -60,7 +61,7 @@ object ColorUtils {
                 }
             }
         }
-
+        
         composeColorMethodPattern.findAll(text).forEach { match ->
             val method = match.groupValues.getOrNull(1) ?: return@forEach  // hsl or hsv
             val args = match.groupValues.getOrNull(2) ?: return@forEach    // arguments
@@ -142,6 +143,7 @@ object ColorUtils {
     private fun parseComposeColorArgs(arguments: String): Colors? {
         val trimmed = arguments.trim()
 
+        // Packed color: Color(0xAARRGGBB)
         parseComposePackedColor(trimmed)?.let { return it }
 
         val parts = trimmed.split(',').map { it.trim() }
@@ -200,6 +202,17 @@ object ColorUtils {
         val clean = value.removePrefix("#").removePrefix("0x").removePrefix("0X")
         return try {
             when (clean.length) {
+                1 -> {
+                    // 1 digit: expand to red component (e.g., F → FF red)
+                    val r = "${clean[0]}${clean[0]}".toInt(16)
+                    Colors(255, r, 0, 0)
+                }
+                2 -> {
+                    // 2 digits: expand to red+green (e.g., FF → FF, FF)
+                    val r = "${clean[0]}${clean[0]}".toInt(16)
+                    val g = "${clean[1]}${clean[1]}".toInt(16)
+                    Colors(255, r, g, 0)
+                }
                 3 -> Colors(255, "${clean[0]}${clean[0]}".toInt(16), "${clean[1]}${clean[1]}".toInt(16), "${clean[2]}${clean[2]}".toInt(16))
                 4 -> Colors("${clean[0]}${clean[0]}".toInt(16), "${clean[1]}${clean[1]}".toInt(16), "${clean[2]}${clean[2]}".toInt(16), "${clean[3]}${clean[3]}".toInt(16))
                 6 -> Colors(255, clean.substring(0, 2).toInt(16), clean.substring(2, 4).toInt(16), clean.substring(4, 6).toInt(16))
@@ -222,7 +235,7 @@ object ColorUtils {
     private fun parseFloat(value: String): Float? = value.removeSuffix("f").removeSuffix("F").toFloatOrNull()
     private fun parseUnitFloat(value: String): Float? = parseFloat(value)?.takeIf { it in 0f..1f }
     private fun parseFloatComponent(value: String): Int? = parseUnitFloat(value)?.let { (it * 255f).roundToInt() }
-
+    
     private fun hslToColor(hue: Float, saturation: Float, lightness: Float, alpha: Float): Colors {
         val h = ((hue % 360f) + 360f) % 360f / 360f
         if (saturation == 0f) {
@@ -307,19 +320,62 @@ object ColorUtils {
     }
 
     fun formatColor(original: String, color: Colors, shouldPreserveOGFormat: Boolean = true): String {
+        // Detect original hex digit count (for preserving format)
+        val originalDigitCount = when {
+            original.startsWith("#") || original.startsWith("0x", ignoreCase = true) -> {
+                val clean = original.removePrefix("#").removePrefix("0x").removePrefix("0X")
+                clean.length  
+            }
+            else -> 6  
+        }
+        
+        if (!shouldPreserveOGFormat) {
+            return when {
+                original.contains("Color.rgb", ignoreCase = true) || 
+                original.contains("Color.hsl", ignoreCase = true) ||
+                original.contains("Color.hsv", ignoreCase = true) ||
+                original.contains("Color(") -> "0x${color.toHex(6)}"
+                
+                original.contains("Color.argb", ignoreCase = true) ->
+                    "0x${color.toHex(8)}"  // argb → 8-digit with alpha
+                
+                original.startsWith("0x", ignoreCase = true) -> {
+                    val outputDigits = when {
+                        originalDigitCount <= 2 -> 6  // 1-2 digit short → 6-digit long
+                        originalDigitCount <= 4 -> {
+                            // 3-4 digit: check if has alpha
+                            if (originalDigitCount == 4) 8 else 6  // 3→6, 4→8
+                        }
+                        else -> originalDigitCount  // 6 or 8 → preserve
+                    }
+                    "0x${color.toHex(outputDigits)}"
+                }
+                
+                else -> {
+                    val outputDigits = when {
+                        originalDigitCount <= 2 -> 6
+                        originalDigitCount <= 4 -> {
+                            if (originalDigitCount == 4) 8 else 6
+                        }
+                        else -> originalDigitCount
+                    }
+                    "#${color.toHex(outputDigits)}"
+                }
+            }
+        }
+        
         return when {
             original.contains("argb", ignoreCase = true) -> formatColorCall(original, color, "argb", 4)
             original.contains("rgb", ignoreCase = true) -> formatColorCall(original, color, "rgb", 3)
             original.contains("hsl", ignoreCase = true) || original.contains("hsv", ignoreCase = true) ->
                 formatColorMethod(original, color)
             original.contains("Color(") -> formatComposeColor(original, color)
-            shouldPreserveOGFormat && original.startsWith("#", ignoreCase = false) -> "#${color.toHex()}"
-            shouldPreserveOGFormat && original.startsWith("0x", ignoreCase = true) -> "0x${color.toHex()}"
-            else -> "#${color.toHex()}"
+            original.startsWith("#", ignoreCase = false) -> "#${color.toHex(originalDigitCount)}"
+            original.startsWith("0x", ignoreCase = true) -> "0x${color.toHex(originalDigitCount)}"
+            else -> "#${color.toHex(originalDigitCount)}"
         }
     }
 
- 
     private fun formatColorCall(original: String, color: Colors, method: String, componentCount: Int): String {
         val args = original.substringAfter("$method(").substringBeforeLast(")")
         val parts = args.split(',').map { it.trim() }

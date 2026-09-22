@@ -34,8 +34,8 @@ res = ["src/release/res"]
 resources = ["src/release/resources"]
 
 [dependencies]
-implementation = ["kotlin-stdlib", { platform = "io.github.tyron12233:plugin-bom:2.10.0" }]
-compileOnly = ["io.github.tyron12233:platform-core:2.7.0", "io.github.tyron12233:plugin-api:2.10.0", "io.github.tyron12233:plugin-ui-api:2.10.0", "androidx.compose.runtime:runtime:1.11.2", "androidx.compose.foundation:foundation:1.11.2", "androidx.compose.ui:ui:1.11.2", "androidx.compose.material3:material3:1.4.0", "io.github.tyron12233:analysis-api:2.10.0", "androidx.compose.ui:ui-graphics:1.12.1"]
+implementation = ["kotlin-stdlib", { platform = "io.github.tyron12233:plugin-bom:3.0.0" }]
+compileOnly = ["androidx.compose.runtime:runtime:1.11.2", "androidx.compose.foundation:foundation:1.11.2", "androidx.compose.ui:ui:1.11.2", "androidx.compose.material3:material3:1.4.0", "androidx.compose.ui:ui-graphics:1.12.1", "io.github.tyron12233:platform-core:3.0.0", "io.github.tyron12233:plugin-api:3.0.0", "io.github.tyron12233:analysis-api:3.0.0", "io.github.tyron12233:plugin-ui-api:3.0.0"]
 
 [android]
 namespace = "kz.codingOnTheMoon.colorpickerplugin"
@@ -43,8 +43,8 @@ compileSdk = 36
 minSdk = 26
 targetSdk = 36
 manifest = "src/main/AndroidManifest.xml"
-versionCode = 1
-versionName = "1.0"
+versionCode = 3
+versionName = "1.1.1"
 isApplication = true
 manifestPlaceholders = []
 buildTypes = [{ name = "debug", debuggable = true, minifyEnabled = false, shrinkResources = false }, { name = "release", debuggable = false, minifyEnabled = false, shrinkResources = false, proguardFiles = ["proguard-android-optimize.txt", "proguard-rules.pro"] }]

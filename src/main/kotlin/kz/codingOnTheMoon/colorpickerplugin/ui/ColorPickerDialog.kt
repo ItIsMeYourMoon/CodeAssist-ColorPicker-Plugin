@@ -42,7 +42,7 @@ fun ColorPickerDialog(currentColor: String) {
         )
     }
 
-    var shouldPreserveFormat by rememberSaveable { mutableStateOf(true)}
+    var shouldPreserveFormat by rememberSaveable { mutableStateOf(true) }
 
     val syncHexInput = {
         hexInput = colorState.toHex()
@@ -59,7 +59,7 @@ fun ColorPickerDialog(currentColor: String) {
             )
             hexInputError = false
         } ?: run {
-            hexInputError = true
+            hexInputError = hex.isNotEmpty() && hex.length >= 3
         }
     }
 
@@ -68,13 +68,12 @@ fun ColorPickerDialog(currentColor: String) {
             ColorPickerPlugin.sendPickerResult(null)
         },
         title = {
-            Text("What are you waiting for? Pick one")
+            Text("Pick a Color")
         },
         text = {
             Column(
                 modifier = Modifier.padding(16.dp)
-            )
-            {
+            ) {
                 OutlinedTextField(
                     value = hexInput,
                     onValueChange = { newValue ->
@@ -85,8 +84,8 @@ fun ColorPickerDialog(currentColor: String) {
                         Text("Hex Color")
                     },
                     placeholder = {
-                         Text("#RRGGBB or #AARRGGBB")
-                     },
+                        Text("#RGB, #RRGGBB, #ARGB, #AARRGGBB, or 0x...")
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 8.dp),
@@ -94,7 +93,9 @@ fun ColorPickerDialog(currentColor: String) {
                     isError = hexInputError,
                     supportingText = {
                         if (hexInputError) {
-                            Text("Invalid hex format", color = Color.Red)
+                            Text("Enter a valid hex color", color = Color.Red)
+                        } else if (hexInput.isNotEmpty()) {
+                            Text("Accepts: #RGB, #RRGGBB, #ARGB, #AARRGGBB, 0xRRGGBB, etc.", color = Color.Gray)
                         }
                     }
                 )
@@ -137,28 +138,29 @@ fun ColorPickerDialog(currentColor: String) {
                     onColorChange = {
                         colorState = colorState.copy(blue = it)
                         syncHexInput()
-                    },
-
+                    }
                 )
                 
                 HorizontalDivider(Modifier.padding(vertical = 8.dp))
                 
                 Box(
                     modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp)
-                    .background(
-                        Color(
-                            alpha = colorState.alpha / 255f,
-                            red = colorState.red / 255f,
-                            green = colorState.green / 255f,
-                            blue = colorState.blue / 255f
+                        .fillMaxWidth()
+                        .height(50.dp)
+                        .background(
+                            Color(
+                                alpha = colorState.alpha / 255f,
+                                red = colorState.red / 255f,
+                                green = colorState.green / 255f,
+                                blue = colorState.blue / 255f
+                            )
                         )
-                    )
                 )
 
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Checkbox(
@@ -176,7 +178,8 @@ fun ColorPickerDialog(currentColor: String) {
                         colorState.toColors(),
                         shouldPreserveFormat
                     )
-                }
+                },
+                enabled = !hexInputError 
             ) {
                 Text("Apply")
             }
@@ -191,7 +194,6 @@ fun ColorPickerDialog(currentColor: String) {
             }
         }
     )
-
 }
 
 @Composable

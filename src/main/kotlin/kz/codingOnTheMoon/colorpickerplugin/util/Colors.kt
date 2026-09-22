@@ -3,8 +3,24 @@ package kz.codingOnTheMoon.colorpickerplugin.util
 import android.util.Log
 
 data class Colors(val alpha: Int, val red: Int, val green: Int, val blue: Int) {
-    fun toHex(): String =
-    "%02X%02X%02X%02X".format(alpha, red, green, blue)
+    fun toHex(): String = toHex(digitCount = 8)  // Default: 8-digit AARRGGBB
+    
+    fun toHex(digitCount: Int): String {
+        return when {
+            digitCount <= 0 -> ""
+            digitCount <= 4 -> {
+                val aHex = "%X".format(alpha / 17)
+                val rHex = "%X".format(red / 17)
+                val gHex = "%X".format(green / 17)
+                val bHex = "%X".format(blue / 17)
+                listOf(aHex, rHex, gHex, bHex).take(digitCount).joinToString("")
+            }
+            else -> { 
+                val fullHex = "%02X%02X%02X%02X".format(alpha, red, green, blue)
+                fullHex.takeLast(digitCount.coerceAtMost(8))  // Take rightmost N digits (max 8)
+            }
+        }
+    }
 
     fun toArgb(): String =
     "0x${ "%02X%02X%02X%02X".format(alpha, red, green, blue)}"
